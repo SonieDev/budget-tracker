@@ -89,7 +89,7 @@ cat > /mnt/user-data/outputs/README.md << 'ENDOFFILE'
 ### Prerequisites
 - Python 3.12+
 - Node.js 20+
-- Supabase account (free)
+- Supabase 
 - Anthropic API key
 
 ### 1. Clone the repository
@@ -128,8 +128,8 @@ npm install
 
 Create `frontend/.env`:
 ```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
+VITE_SUPABASE_URL=https://budget-tracker.supabase.co
+VITE_SUPABASE_ANON_KEY=et...
 ```
 
 Start frontend:
@@ -226,7 +226,7 @@ CREATE INDEX idx_goals_user_id ON goals(user_id);
 budget-tracker/
 ├── backend/
 │   ├── main.py              # FastAPI + all endpoints
-│   ├── .env                 # 🔒 Not in git
+│   ├── .env                 
 │   └── requirements.txt
 │
 └── frontend/
@@ -250,7 +250,7 @@ budget-tracker/
     │   ├── api.js                 # All API calls
     │   ├── supabase.js            # Supabase client
     │   └── App.jsx                # Router
-    ├── .env                       # 🔒 Not in git
+    ├── .env                      
     └── package.json
 ```
 

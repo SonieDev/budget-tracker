@@ -23,8 +23,6 @@ export default function Drawer({ open, onClose, user }) {
   const { theme, toggleTheme } = useThemeContext()
   const [isAdmin, setIsAdmin] = useState(false)
 
-  const isAdmin = user?.id === ADMIN_ID
-
   const username = user?.user_metadata?.username || user?.email?.split('@')[0] || 'User'
   const email = user?.email || ''
 

@@ -1,6 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../supabase'
 import { useThemeContext } from './ThemeProvider'
+import { checkAdmin } from '../api'
+
+const ADMIN_ID = "il-tuo-admin-id" // stesso ID del backend
 
 const NAV_ITEMS = [
   { icon: '⊞', label: 'Dashboard', path: '/' },
@@ -9,6 +12,7 @@ const NAV_ITEMS = [
   { icon: '▦', label: 'Reports', path: '/reports' },
   { icon: '🤖', label: 'AI Advisor', path: '/chat' },
   { icon: '👤', label: 'Profile', path: '/profile' },
+  ...(isAdmin ? [{ icon: '⚡', label: 'Admin', path: '/admin' }] : [])
 ]
 
 
@@ -17,11 +21,18 @@ export default function Drawer({ open, onClose, user }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggleTheme } = useThemeContext()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  const isAdmin = user?.id === ADMIN_ID
 
   const username = user?.user_metadata?.username || user?.email?.split('@')[0] || 'User'
   const email = user?.email || ''
 
   const isDark = theme === 'dark'
+
+  useEffect(() => {
+    checkAdmin().then(res => setIsAdmin(res?.is_admin || false))
+  }, [])
 
   async function logout() {
     await supabase.auth.signOut()

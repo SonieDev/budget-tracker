@@ -99,6 +99,7 @@ export const getStats = () => chiamaAPI('/stats')
 // -------------------------
 // ADMIN
 // -------------------------
+export const checkAdmin = () => chiamaAPI('/admin/check')
 export const getAdminStats = () => chiamaAPI('/admin/stats')
 export const getAdminUsers = () => chiamaAPI('/admin/users')
 

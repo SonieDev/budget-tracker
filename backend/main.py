@@ -326,6 +326,11 @@ def require_admin(authorization: str = Header(...)):
         raise HTTPException(status_code=403, detail="Access denied!")
     return user_id
 
+@app.get("/admin/check")
+def check_admin(authorization: str = Header(...)):
+    user_id = get_user_id(authorization)
+    return {"is_admin": user_id == ADMIN_USER_ID}
+
 @app.get("/admin/stats")
 def admin_stats(authorization: str = Header(...)):
     require_admin(authorization)

@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-const BASE_URL = 'http://localhost:8000'
+const BASE_URL = 'https://budget-tracker-3w2d.onrender.com'
 
 // Funzione base — aggiunge il token automaticamente
 async function chiamaAPI(endpoint, opzioni = {}) {
@@ -77,7 +77,7 @@ export const generateAiReport = () => chiamaAPI('/ai/report', {
 
 export const exportTransactions = async () => {
   const { data: { session } } = await supabase.auth.getSession()
-  const response = await fetch('http://localhost:8000/export/transactions', {
+  const response = await fetch('https://budget-tracker-3w2d.onrender.com/export/transactions', {
     headers: { 'Authorization': `Bearer ${session.access_token}` }
   })
   const blob = await response.blob()

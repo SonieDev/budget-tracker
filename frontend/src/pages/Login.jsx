@@ -208,7 +208,7 @@ function Login() {
 
         {/* Button */}
         <button
-          onClick="submit"
+          type="submit"
           disabled={caricamento}
           style={{
             width: '100%',

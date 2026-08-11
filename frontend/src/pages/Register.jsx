@@ -211,7 +211,7 @@ function Register() {
 
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
-            accedi()
+            registrati()
           }
         }}
         

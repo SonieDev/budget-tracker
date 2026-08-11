@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
 import { getGoals, createGoal, updateGoal, deleteGoal, editGoal, getGoalSuggestion } from '../api'
 import Layout from '../components/Layout'
@@ -54,54 +55,92 @@ export default function Goals() {
   }, [])
 
   async function addGoal() {
-    if (!name || !targetAmount) return
+    if (!name || !targetAmount) {
+      toast.error('Please enter a goal name and target amount!')
+      return
+    }
     setSaving(true)
-    await createGoal({
-      name: `${emoji} ${name}`,
-      target_amount: parseFloat(targetAmount),
-      current_amount: parseFloat(currentAmount) || 0,
-      deadline: deadline || null
-    })
-    const g = await getGoals()
-    setGoals(g || [])
-    setName(''); setTargetAmount(''); setCurrentAmount('')
-    setDeadline(''); setEmoji('🎯')
-    setShowForm(false); setSaving(false)
+    try {
+      await createGoal({
+        name: `${emoji} ${name}`,
+        target_amount: parseFloat(targetAmount),
+        current_amount: parseFloat(currentAmount) || 0,
+        deadline: deadline || null
+      })
+      toast.success('🎯 Savings goal created!')
+      const g = await getGoals()
+      setGoals(g || [])
+      setName(''); setTargetAmount(''); setCurrentAmount('')
+      setDeadline(''); setEmoji('🎯')
+      setShowForm(false)
+    } catch (err) {
+      toast.error('Failed to create goal')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function addSavings(goalId) {
-    if (!addAmount || parseFloat(addAmount) <= 0) return
+    if (!addAmount || parseFloat(addAmount) <= 0) {
+      toast.error('Please enter a valid savings amount')
+      return
+    }
     setAdding(true)
-    await updateGoal(goalId, { amount_to_add: parseFloat(addAmount) })
-    const g = await getGoals()
-    setGoals(g || [])
-    setAddAmount(''); setAddingTo(null); setAdding(false)
+    try {
+      await updateGoal(goalId, { amount_to_add: parseFloat(addAmount) })
+      toast.success('💰 Savings added to goal!')
+      const g = await getGoals()
+      setGoals(g || [])
+      setAddAmount(''); setAddingTo(null)
+    } catch (err) {
+      toast.error('Failed to update savings')
+    } finally {
+      setAdding(false)
+    }
   }
 
   async function removeGoal(goalId) {
     if (!confirm('Delete this goal?')) return
 
-    await deleteGoal(goalId)
-    setGoals(goals.filter(g => g.id !== goalId))
+    try {
+      await deleteGoal(goalId)
+      setGoals(goals.filter(g => g.id !== goalId))
+      toast.success('Goal deleted')
+    } catch (err) {
+      toast.error('Failed to delete goal')
+    }
   }
 
   async function saveEdit(goalId) {
     setEditSaving(true)
-    await editGoal(goalId, {
-      name: editName || undefined,
-      target_amount: editTarget ? parseFloat(editTarget) : undefined,
-      deadline: editDeadline || undefined
-    })
-    const g = await getGoals()
-    setGoals(g || [])
-    setEditingId(null); setEditSaving(false)
+    try {
+      await editGoal(goalId, {
+        name: editName || undefined,
+        target_amount: editTarget ? parseFloat(editTarget) : undefined,
+        deadline: editDeadline || undefined
+      })
+      toast.success('Goal updated!')
+      const g = await getGoals()
+      setGoals(g || [])
+      setEditingId(null)
+    } catch (err) {
+      toast.error('Failed to edit goal')
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   async function fetchSuggestion(goalId) {
     setLoadingSuggestion(goalId)
-    const result = await getGoalSuggestion(goalId)
-    setSuggestions(prev => ({ ...prev, [goalId]: result }))
-    setLoadingSuggestion(null)
+    try {
+      const result = await getGoalSuggestion(goalId)
+      setSuggestions(prev => ({ ...prev, [goalId]: result }))
+      toast.success('💡 AI Tip generated!')
+    } catch (err) {
+      toast.error('Could not generate AI tip')
+    } finally {
+      setLoadingSuggestion(null)
+    }
   }
 
   if (loading) return (

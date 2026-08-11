@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
 import { getStats, getTransactions, getGoals, exportTransactions, uploadAvatar} from '../api'
 import Layout from '../components/Layout'
@@ -59,16 +60,29 @@ const avatarUrl = user?.user_metadata?.avatar_url
   async function updateUsername() {
     if (!newUsername.trim()) return
     setSavingName(true)
-    await supabase.auth.updateUser({ data: { username: newUsername } })
-    const { data: { session } } = await supabase.auth.getSession()
-    setUser(session.user)
-    setEditingName(false); setSavingName(false); setNewUsername('')
+    try {
+      await supabase.auth.updateUser({ data: { username: newUsername } })
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session.user)
+      toast.success('Username updated!')
+      setEditingName(false); setNewUsername('')
+    } catch (err) {
+      toast.error('Failed to update username')
+    } finally {
+      setSavingName(false)
+    }
   }
 
   async function updatePassword() {
     setPasswordMsg({ text: '', type: '' })
-    if (newPassword.length < 6) return setPasswordMsg({ text: 'Password must be at least 6 characters!', type: 'error' })
-    if (newPassword !== confirmPassword) return setPasswordMsg({ text: 'Passwords do not match!', type: 'error' })
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters!')
+      return setPasswordMsg({ text: 'Password must be at least 6 characters!', type: 'error' })
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match!')
+      return setPasswordMsg({ text: 'Passwords do not match!', type: 'error' })
+    }
 
     setSavingPassword(true)
 
@@ -79,6 +93,7 @@ const avatarUrl = user?.user_metadata?.avatar_url
     })
 
     if (signInError) {
+      toast.error('Current password is incorrect!')
       setPasswordMsg({ text: 'Current password is incorrect!', type: 'error' })
       setSavingPassword(false)
       return
@@ -86,8 +101,10 @@ const avatarUrl = user?.user_metadata?.avatar_url
 
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) {
+      toast.error('Error updating password. Try again.')
       setPasswordMsg({ text: 'Error updating password. Try again.', type: 'error' })
     } else {
+      toast.success('Password updated successfully!')
       setPasswordMsg({ text: 'Password updated successfully!', type: 'success' })
       setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
       setTimeout(() => { setActiveSection(null); setPasswordMsg({ text: '', type: '' }) }, 2000)
@@ -96,9 +113,16 @@ const avatarUrl = user?.user_metadata?.avatar_url
   }
 
   async function sendResetLink() {
-    await supabase.auth.resetPasswordForEmail(user.email)
-    setResetSent(true)
-    setTimeout(() => setResetSent(false), 5000)
+    try {
+      await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      })
+      toast.success('Reset link sent to your email!')
+      setResetSent(true)
+      setTimeout(() => setResetSent(false), 5000)
+    } catch (err) {
+      toast.error('Could not send reset link')
+    }
   }
 
   async function handleExport() {

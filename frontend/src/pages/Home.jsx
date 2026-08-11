@@ -32,7 +32,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-slate-400 text-sm">Loading your finances...</p>
+        <p className="text-slate-400 text-sm font-semibold">Loading your financial dashboard...</p>
       </div>
     </div>
   )
@@ -41,7 +41,20 @@ export default function Home() {
   const balance = stats?.saldo || 0
   const income = stats?.totale_entrate || 0
   const expense = stats?.totale_uscite || 0
-  const savingsRate = income > 0 ? Math.round(((income - expense) / income) * 100) : 0
+  const savingsRate = income > 0 ? Math.max(0, Math.round(((income - expense) / income) * 100)) : 0
+
+  // Spending per category breakdown
+  const categoryTotals = {}
+  transactions.filter(t => t.type === 'expense').forEach(t => {
+    const cat = t.category_name || 'Other'
+    categoryTotals[cat] = (categoryTotals[cat] || 0) + t.amount
+  })
+
+  const sortedCategories = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+
+  const cardStyle = isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
 
   return (
     <Layout user={user} title="Dashboard">
@@ -51,7 +64,7 @@ export default function Home() {
         <h2 className={`text-2xl font-black mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
           Good day, {username} 👋
         </h2>
-        <p className="text-slate-500 text-sm">Here's your financial overview</p>
+        <p className="text-slate-500 text-sm">Here's your smart financial overview</p>
       </div>
 
       {/* Balance card — hero */}
@@ -60,22 +73,22 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-24 -translate-x-24" />
         <div className="relative">
           <p className="text-violet-200 text-sm font-semibold mb-2 uppercase tracking-wider">
-            Total Balance
+            Total Net Balance
           </p>
           <h2 className="text-5xl font-black text-white mb-6">
             €{balance.toFixed(2)}
           </h2>
-          <div className="flex gap-6">
+          <div className="flex gap-6 flex-wrap">
             <div>
-              <p className="text-violet-300 text-xs font-semibold mb-1">↑ Income</p>
+              <p className="text-violet-300 text-xs font-semibold mb-1">↑ Total Income</p>
               <p className="text-white font-bold text-lg">€{income.toFixed(2)}</p>
             </div>
-            <div className="w-px bg-white/20" />
+            <div className="w-px bg-white/20 hidden sm:block" />
             <div>
-              <p className="text-violet-300 text-xs font-semibold mb-1">↓ Expenses</p>
+              <p className="text-violet-300 text-xs font-semibold mb-1">↓ Total Expenses</p>
               <p className="text-white font-bold text-lg">€{expense.toFixed(2)}</p>
             </div>
-            <div className="w-px bg-white/20" />
+            <div className="w-px bg-white/20 hidden sm:block" />
             <div>
               <p className="text-violet-300 text-xs font-semibold mb-1">📊 Savings rate</p>
               <p className="text-white font-bold text-lg">{savingsRate}%</p>
@@ -90,7 +103,7 @@ export default function Home() {
           { label: 'Add expense', icon: '↓', color: 'from-red-500 to-rose-600', path: '/transactions' },
           { label: 'Add income', icon: '↑', color: 'from-emerald-500 to-teal-600', path: '/transactions' },
           { label: 'New goal', icon: '◎', color: 'from-blue-500 to-cyan-600', path: '/goals' },
-          { label: 'View reports', icon: '▦', color: 'from-amber-500 to-orange-600', path: '/reports' },
+          { label: 'AI Advisor', icon: '🤖', color: 'from-amber-500 to-orange-600', path: '/chat' },
         ].map(action => (
           <button
             key={action.label}
@@ -108,58 +121,92 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Recent transactions */}
-      <div className={`rounded-3xl border ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <div className="flex items-center justify-between p-6 border-b border-slate-800/50">
-          <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Recent Transactions
+      {/* Grid: Category Spending + Recent Transactions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Category spending Breakdown */}
+        <div className={`rounded-3xl border p-6 ${cardStyle}`}>
+          <h3 className={`font-black text-base mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Top Spending Categories 📊
           </h3>
-          <button
-            onClick={() => navigate('/transactions')}
-            className="text-violet-400 text-sm font-semibold hover:text-violet-300 transition-colors"
-          >
-            View all →
-          </button>
+          {sortedCategories.length === 0 ? (
+            <p className="text-slate-500 text-sm py-8 text-center">No expense categories recorded yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {sortedCategories.map(([catName, amt]) => {
+                const pct = expense > 0 ? Math.round((amt / expense) * 100) : 0
+                const barColor = pct > 40 ? 'bg-red-500' : pct > 20 ? 'bg-amber-500' : 'bg-violet-500'
+                return (
+                  <div key={catName}>
+                    <div className="flex justify-between text-xs font-semibold mb-1">
+                      <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{catName}</span>
+                      <span className="text-slate-400">€{amt.toFixed(2)} ({pct}%)</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-800/40 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                        style={{ width: `${Math.min(100, pct)}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
-        {transactions.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-slate-500">
-            <span className="text-5xl">💸</span>
-            <p className="font-semibold">No transactions yet</p>
+        {/* Recent transactions */}
+        <div className={`rounded-3xl border overflow-hidden ${cardStyle}`}>
+          <div className="flex items-center justify-between p-6 border-b border-slate-800/50">
+            <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              Recent Transactions
+            </h3>
             <button
               onClick={() => navigate('/transactions')}
-              className="text-violet-400 text-sm font-semibold hover:text-violet-300"
+              className="text-violet-400 text-sm font-semibold hover:text-violet-300 transition-colors"
             >
-              Add your first transaction →
+              View all →
             </button>
           </div>
-        ) : (
-          <div className="divide-y divide-slate-800/50">
-            {transactions.slice(0, 3).map(t => (
-              <div key={t.id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-800/30 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={`
-                    w-10 h-10 rounded-2xl flex items-center justify-center text-lg
-                    ${t.type === 'income' ? 'bg-emerald-500/15' : 'bg-red-500/15'}
-                  `}>
-                    {t.categories?.icon || (t.type === 'income' ? '↑' : '↓')}
+
+          {transactions.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-12 text-slate-500">
+              <span className="text-4xl">💸</span>
+              <p className="font-semibold text-sm">No transactions yet</p>
+              <button
+                onClick={() => navigate('/transactions')}
+                className="text-violet-400 text-sm font-semibold hover:text-violet-300"
+              >
+                Add your first transaction →
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-800/50">
+              {transactions.slice(0, 4).map(t => (
+                <div key={t.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-slate-800/30 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`
+                      w-9 h-9 rounded-xl flex items-center justify-center text-base
+                      ${t.type === 'income' ? 'bg-emerald-500/15' : 'bg-red-500/15'}
+                    `}>
+                      {t.category_icon || (t.type === 'income' ? '↑' : '↓')}
+                    </div>
+                    <div>
+                      <p className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        {t.description || 'No description'}
+                      </p>
+                      <p className="text-slate-500 text-xs">
+                        {t.category_name || 'Uncategorized'} · {t.date}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {t.description || 'No description'}
-                    </p>
-                    <p className="text-slate-500 text-xs">
-                      {t.categories?.name || 'Uncategorized'} · {t.date}
-                    </p>
-                  </div>
+                  <span className={`font-black text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {t.type === 'income' ? '+' : '-'}€{t.amount.toFixed(2)}
+                  </span>
                 </div>
-                <span className={`font-black text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {t.type === 'income' ? '+' : '-'}€{t.amount.toFixed(2)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   )

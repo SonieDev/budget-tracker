@@ -21,8 +21,7 @@ export default function ResetPassword() {
 
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code)
-          if (error) console.error('exchangeCodeForSession error:', error)
-          else {
+          if (!error) {
             setHasSession(true)
             setIsVerifying(false)
             return
@@ -31,8 +30,7 @@ export default function ResetPassword() {
 
         if (tokenHash && type === 'recovery') {
           const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
-          if (error) console.error('verifyOtp error:', error)
-          else {
+          if (!error) {
             setHasSession(true)
             setIsVerifying(false)
             return
@@ -80,7 +78,7 @@ export default function ResetPassword() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       setMsg({
-        text: 'Session not found or reset link expired. Please request a new link from "Forgot Password".',
+        text: 'Error updating password. Try again.',
         type: 'error'
       })
       setLoading(false)
@@ -90,12 +88,11 @@ export default function ResetPassword() {
     const { error } = await supabase.auth.updateUser({ password: newPassword })
 
     if (error) {
-      console.error('Supabase updateUser exact error:', error)
-      const errDetails = [error.message, error.code, error.status].filter(Boolean).join(' | ')
-      setMsg({ text: `Error updating password: ${errDetails}`, type: 'error' })
+      console.error('Supabase updateUser error:', error)
+      setMsg({ text: 'Error updating password. Try again.', type: 'error' })
     } else {
-      setMsg({ text: 'Password updated successfully! Redirecting to login...', type: 'success' })
-      setTimeout(() => navigate('/login'), 2500)
+      setMsg({ text: 'Password updated! Redirecting...', type: 'success' })
+      setTimeout(() => navigate('/login'), 2000)
     }
 
     setLoading(false)

@@ -256,14 +256,25 @@ def ai_report(authorization: str = Header(...)):
     
     top_categories = sorted(by_category.items(), key=lambda x: x[1], reverse=True)[:5]
     
-    prompt = f"""You are a personal finance advisor. Analyze this user's financial data and provide a detailed, actionable report.
+    # Prende fino a 10 transazioni recenti con date e descrizioni
+    recent_transactions = transactions.data[:10]
+    recent_tx_summary = "\n".join([
+        f"- {t.get('date', 'N/A')}: {t.get('description') or t.get('category_name') or 'Expense'} - €{t.get('amount', 0):.2f} ({t.get('category_name', 'General')})"
+        for t in recent_transactions
+    ]) if recent_transactions else "- No recent transactions recorded yet"
 
-FINANCIAL DATA:
-- Total Income: €{total_income:.2f}
-- Total Expenses: €{total_expense:.2f}
-- Net Balance: €{balance:.2f}
-- Savings Rate: {savings_rate}%
-- Number of transactions: {len(transactions.data)}
+    prompt = f"""You are a warm, extremely friendly, polite, and encouraging personal finance advisor for Budget Tracker.
+Analyze this user's real transaction history and financial goals to provide a personalized, beautifully formatted financial report.
+
+FINANCIAL OVERVIEW:
+- Total Income: €{total_income:.2f} 💰
+- Total Expenses: €{total_expense:.2f} 💸
+- Net Balance: €{balance:.2f} 📊
+- Savings Rate: {savings_rate}% 📈
+- Total Transactions Recorded: {len(transactions.data)} 📝
+
+RECENT TRANSACTIONS & DATES:
+{recent_tx_summary}
 
 TOP EXPENSE CATEGORIES:
 {chr(10).join([f"- {cat}: €{amount:.2f}" for cat, amount in top_categories])}
@@ -271,13 +282,13 @@ TOP EXPENSE CATEGORIES:
 SAVINGS GOALS:
 {chr(10).join([f"- {g['name']}: €{g['current_amount']:.2f} / €{g['target_amount']:.2f}" for g in goals.data]) if goals.data else "- No goals set yet"}
 
-Please provide:
-1. A brief overall financial health assessment (use emojis)
-2. Key insights about spending patterns
-3. 3-4 specific actionable recommendations
-4. Encouragement based on their progress
-
-Keep it concise, friendly and motivating. Use bullet points. Maximum 200 words."""
+Guidelines for the response:
+1. Be super friendly, warm, polite, and motivating ✨!
+2. Use rich, cheerful emojis (🌟 📊 💡 🎯 💵 🏆 🎉) in headings and key points.
+3. Reference specific recent transactions, dates, or top spending categories so the user knows you truly analyzed their exact activity.
+4. Provide 3 actionable, easy-to-follow financial tips.
+5. End with an inspiring closing message!
+6. Respond in the same language as the user's data or request (Italian / English / French)."""
 
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     
@@ -392,15 +403,25 @@ def ai_chat(data: ChatMessage, authorization: str = Header(...)):
     
     top_categories = sorted(by_category.items(), key=lambda x: x[1], reverse=True)[:3]
     
-    system_prompt = f"""You are a friendly and knowledgeable personal finance advisor for Budget Tracker app.
-You have access to the user's real financial data:
+    # Prende fino a 10 transazioni recenti con date e descrizioni
+    recent_transactions = transactions.data[:10]
+    recent_tx_summary = "\n".join([
+        f"- {t.get('date', 'N/A')}: {t.get('description') or t.get('category_name') or 'Expense'} - €{t.get('amount', 0):.2f} ({t.get('category_name', 'General')})"
+        for t in recent_transactions
+    ]) if recent_transactions else "- No recent transactions recorded yet"
+
+    system_prompt = f"""You are a warm, polite, encouraging, and knowledgeable personal finance advisor for Budget Tracker app.
+You have access to the user's real financial data and recent transaction history:
 
 FINANCIAL SUMMARY:
-- Total Income: €{total_income:.2f}
-- Total Expenses: €{total_expense:.2f}  
-- Net Balance: €{balance:.2f}
-- Savings Rate: {savings_rate}%
-- Total Transactions: {len(transactions.data)}
+- Total Income: €{total_income:.2f} 💰
+- Total Expenses: €{total_expense:.2f} 💸
+- Net Balance: €{balance:.2f} 📊
+- Savings Rate: {savings_rate}% 📈
+- Total Transactions: {len(transactions.data)} 📝
+
+RECENT TRANSACTIONS & DATES:
+{recent_tx_summary}
 
 TOP EXPENSE CATEGORIES:
 {chr(10).join([f"- {cat}: €{amount:.2f}" for cat, amount in top_categories]) if top_categories else "- No expense data yet"}
@@ -409,12 +430,11 @@ SAVINGS GOALS:
 {chr(10).join([f"- {g['name']}: €{g['current_amount']:.2f} / €{g['target_amount']:.2f} ({round((g['current_amount']/g['target_amount'])*100)}%)" for g in goals.data]) if goals.data else "- No goals set yet"}
 
 Guidelines:
-- Be friendly, encouraging and specific
-- Always reference their REAL data when relevant
-- Give actionable advice with specific numbers
-- Keep responses concise (max 3-4 sentences)
-- Use emojis sparingly
-- Respond in the same language as the user"""
+- Be super warm, polite, friendly, and encouraging ✨!
+- Use cheerful emojis (🌟 📊 💡 🎯 💵 🏆 🎉) to make your answers engaging.
+- Reference their exact transactions, dates, or amounts when relevant.
+- Give actionable, positive advice with specific numbers.
+- Respond in the exact same language as the user (Italian / English / French)."""
 
     messages = []
     for msg in data.history[-6:]:

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
 import { getTransactions, getStats, generateAiReport } from '../api'
 import Layout from '../components/Layout'
@@ -95,15 +96,25 @@ export default function Reports() {
     fontSize: '12px'
   }
 
+import toast from 'react-hot-toast'
+
   async function generateAiReportHandler() {
     setGenerating(true)
     try {
       const result = await generateAiReport()
       setAiReport(result.report)
+      toast.success('📊 AI Financial Report generated!')
     } catch (e) {
+      toast.error('Error generating AI report. Please try again.')
       setAiReport('Error generating report. Please try again.')
+    } finally {
+      setGenerating(false)
     }
-    setGenerating(false)
+  }
+
+  function handlePrintReport() {
+    toast.success('🖨️ Opening print preview for PDF export...')
+    window.print()
   }
 
   return (
@@ -132,21 +143,32 @@ export default function Reports() {
         ))}
       </div>
 
-      {/* Tabs */}
-      <div className={`flex gap-1 p-1 rounded-xl mb-6 w-fit ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-        {['overview', 'categories', 'trends', 'ai insights'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`
-              px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all
-              ${activeTab === tab
-                ? 'bg-violet-600 text-white shadow-lg'
-                : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
-              }
-            `}
-          >{tab}</button>
-        ))}
+      {/* Tabs & Export Action */}
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <div className={`flex gap-1 p-1 rounded-xl w-fit ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+          {['overview', 'categories', 'trends', 'ai insights'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`
+                px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all
+                ${activeTab === tab
+                  ? 'bg-violet-600 text-white shadow-lg'
+                  : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                }
+              `}
+            >{tab}</button>
+          ))}
+        </div>
+
+        <button
+          onClick={handlePrintReport}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-all ${
+            isDark ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          🖨️ Export PDF / Print
+        </button>
       </div>
 
       {/* OVERVIEW TAB */}

@@ -17,7 +17,8 @@ export default function ForgotPassword() {
       redirectTo: `${window.location.origin}/reset-password`
     })
     if (error) {
-      setError(error.message || 'Error sending reset link. Try again.')
+      console.error('Supabase resetPasswordForEmail error:', error)
+      setError('Error sending reset link. Try again.')
       setLoading(false)
       return
     }

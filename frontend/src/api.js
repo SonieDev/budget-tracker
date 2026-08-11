@@ -1,9 +1,13 @@
-import { supabase } from './supabase'
+import { supabase, checkSessionExpiry5Hours } from './supabase'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://budget-tracker-3w2d.onrender.com'
 
 // Funzione base — aggiunge il token automaticamente
 async function chiamaAPI(endpoint, opzioni = {}) {
+  // Verfica che la sessione non abbia superato le 5 ore
+  const valid = await checkSessionExpiry5Hours()
+  if (!valid) return
+
   // Prende il token dalla sessione Supabase
   const { data: { session } } = await supabase.auth.getSession()
   

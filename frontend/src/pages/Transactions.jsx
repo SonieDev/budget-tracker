@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
 import { getTransactions, createTransaction, deleteTransaction } from '../api'
 import Layout from '../components/Layout'
@@ -23,6 +24,20 @@ const INCOME_CATEGORIES = [
   { icon: '🎁', name: 'Gifts' },
 ]
 
+const AUTO_CAT_KEYWORDS = [
+  { keywords: ['coffee', 'caffè', 'pizza', 'burger', 'food', 'restaurant', 'dinner', 'lunch', 'grocery', 'supermarket', 'starbucks', 'schooping', 'market'], category: 'Food & Dining', type: 'expense' },
+  { keywords: ['rent', 'affitto', 'housing', 'electricity', 'water', 'bill', 'casa'], category: 'Housing', type: 'expense' },
+  { keywords: ['uber', 'taxi', 'gas', 'benzina', 'fuel', 'bus', 'train', 'flight', 'metro'], category: 'Transport', type: 'expense' },
+  { keywords: ['amazon', 'clothes', 'shopping', 'store', 'shoes', 'zara'], category: 'Shopping', type: 'expense' },
+  { keywords: ['pharmacy', 'farmacia', 'doctor', 'health', 'medicine'], category: 'Health', type: 'expense' },
+  { keywords: ['netflix', 'cinema', 'game', 'spotify', 'playstation', 'xbox'], category: 'Entertainment', type: 'expense' },
+  { keywords: ['course', 'book', 'school', 'udemy', 'education', 'libro'], category: 'Education', type: 'expense' },
+  { keywords: ['hotel', 'travel', 'flight', 'trip', 'vacation', 'viaggio'], category: 'Travel', type: 'expense' },
+  { keywords: ['salary', 'stipendio', 'paycheck', 'wages'], category: 'Salary', type: 'income' },
+  { keywords: ['freelance', 'upwork', 'client', 'gig', 'fiverr'], category: 'Freelance', type: 'income' },
+  { keywords: ['crypto', 'stock', 'dividend', 'investment', 'investimento'], category: 'Investments', type: 'income' },
+]
+
 export default function Transactions() {
   const navigate = useNavigate()
   const { theme } = useThemeContext()
@@ -34,12 +49,14 @@ export default function Transactions() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
 
   const [type, setType] = useState('expense')
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [userTouchedCat, setUserTouchedCat] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -53,40 +70,60 @@ export default function Transactions() {
     load()
   }, [])
 
+  // Auto-categorization when typing description
+  function handleDescriptionChange(val) {
+    setDescription(val)
+    if (!userTouchedCat && val.trim().length > 2) {
+      const lower = val.toLowerCase()
+      const match = AUTO_CAT_KEYWORDS.find(rule => 
+        rule.keywords.some(kw => lower.includes(kw))
+      )
+      if (match) {
+        setType(match.type)
+        setCategoryId(match.category)
+      }
+    }
+  }
+
   async function addTransaction() {
-  if (!amount || parseFloat(amount) <= 0) return
-  setSaving(true)
-  const selectedCat = (type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES)
-    .find(c => c.name === categoryId)
+    if (!amount || parseFloat(amount) <= 0) {
+      toast.error('Please enter a valid amount!')
+      return
+    }
+    setSaving(true)
+    const selectedCat = (type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES)
+      .find(c => c.name === categoryId)
 
-  console.log('Category selected:', categoryId)
-  console.log('Selected cat:', selectedCat)
-  console.log('Sending:', {
-    type,
-    amount: parseFloat(amount),
-    description,
-    category_name: selectedCat?.name || null,
-    category_icon: selectedCat?.icon || null,
-    date
-  })
+    try {
+      await createTransaction({
+        type,
+        amount: parseFloat(amount),
+        description: description || selectedCat?.name || 'Transaction',
+        category_name: selectedCat?.name || (type === 'expense' ? 'Food & Dining' : 'Salary'),
+        category_icon: selectedCat?.icon || (type === 'expense' ? '🍕' : '💼'),
+        date
+      })
 
-  await createTransaction({
-    type,
-    amount: parseFloat(amount),
-    description,
-    category_name: selectedCat?.name || null,
-    category_icon: selectedCat?.icon || null,
-    date
-  })
+      toast.success(type === 'expense' ? '💸 Expense recorded!' : '💰 Income added!')
+      const t = await getTransactions()
+      setTransactions(t || [])
+      setAmount(''); setDescription(''); setCategoryId(''); setUserTouchedCat(false)
+      setShowForm(false)
+    } catch (err) {
+      toast.error('Failed to save transaction')
+    } finally {
+      setSaving(false)
+    }
+  }
 
-  const t = await getTransactions()
-  setTransactions(t || [])
-  setAmount(''); setDescription(''); setCategoryId('')
-  setShowForm(false); setSaving(false)
-}
   async function remove(id) {
-    await deleteTransaction(id)
-    setTransactions(transactions.filter(t => t.id !== id))
+    try {
+      await deleteTransaction(id)
+      setTransactions(transactions.filter(t => t.id !== id))
+      toast.success('Transaction deleted')
+    } catch (err) {
+      toast.error('Failed to delete transaction')
+    }
   }
 
   if (loading) return (
@@ -95,8 +132,13 @@ export default function Transactions() {
     </div>
   )
 
-  const filtered = filter === 'all' ? transactions
-    : transactions.filter(t => t.type === filter)
+  const filtered = transactions.filter(t => {
+    const matchesFilter = filter === 'all' || t.type === filter
+    const matchesSearch = !search || 
+      (t.description && t.description.toLowerCase().includes(search.toLowerCase())) ||
+      (t.category_name && t.category_name.toLowerCase().includes(search.toLowerCase()))
+    return matchesFilter && matchesSearch
+  })
 
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0)
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0)
@@ -124,25 +166,36 @@ export default function Transactions() {
       {/* Actions bar */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         {/* Filters */}
-        <div className={`flex gap-1 p-1 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
-          {['all', 'income', 'expense'].map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`
-                px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all
-                ${filter === f
-                  ? 'bg-violet-600 text-white shadow-lg'
-                  : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
-                }
-              `}
-            >{f}</button>
-          ))}
+        <div className="flex gap-2 items-center flex-wrap">
+          <div className={`flex gap-1 p-1 rounded-xl ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`}>
+            {['all', 'income', 'expense'].map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`
+                  px-4 py-2 rounded-lg text-sm font-bold capitalize transition-all
+                  ${filter === f
+                    ? 'bg-violet-600 text-white shadow-lg'
+                    : isDark ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'
+                  }
+                `}
+              >{f}</button>
+            ))}
+          </div>
+
+          {/* Search bar */}
+          <input
+            type="text"
+            placeholder="🔍 Search transactions..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className={`px-4 py-2 rounded-xl border text-sm outline-none transition-colors ${input}`}
+          />
         </div>
 
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 text-white font-bold text-sm shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all hover:scale-105"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-bold text-sm shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all hover:scale-105"
         >
           + New transaction
         </button>
@@ -163,7 +216,7 @@ export default function Transactions() {
             ].map(t => (
               <button
                 key={t.value}
-                onClick={() => setType(t.value)}
+                onClick={() => { setType(t.value); setUserTouchedCat(false) }}
                 className={`
                   py-3 rounded-xl border font-bold text-sm transition-all
                   ${type === t.value ? t.active : isDark ? 'border-slate-700 text-slate-400 hover:border-slate-600' : 'border-slate-200 text-slate-500'}
@@ -193,12 +246,12 @@ export default function Transactions() {
 
           <div className="mb-3">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Description <span className="normal-case font-normal">(optional note)</span>
+              Description <span className="normal-case font-normal">(Auto-detects category ✨)</span>
             </label>
             <input
-              placeholder={type === 'expense' ? 'e.g. Grocery at schooping' : 'e.g. Monthly salary'}
+              placeholder={type === 'expense' ? 'e.g. Coffee at Starbucks' : 'e.g. Monthly salary'}
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={e => handleDescriptionChange(e.target.value)}
               className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors ${input}`}
             />
           </div>
@@ -207,18 +260,18 @@ export default function Transactions() {
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Category
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {(type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).map(cat => (
                 <button
                   key={cat.name}
                   type="button"
-                  onClick={() => setCategoryId(cat.name)}
+                  onClick={() => { setCategoryId(cat.name); setUserTouchedCat(true) }}
                   className={`
                     flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all text-left
                     ${categoryId === cat.name
                       ? type === 'expense'
-                        ? 'bg-red-500/15 border-red-500 text-red-400'
-                        : 'bg-emerald-500/15 border-emerald-500 text-emerald-400'
+                        ? 'bg-red-500/15 border-red-500 text-red-400 font-bold'
+                        : 'bg-emerald-500/15 border-emerald-500 text-emerald-400 font-bold'
                       : isDark
                         ? 'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-white'
                         : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-900'
@@ -235,7 +288,7 @@ export default function Transactions() {
           <div className="flex gap-3">
             <button
               onClick={addTransaction} disabled={saving}
-              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 text-white font-bold shadow-lg shadow-violet-500/25 hover:scale-105 transition-all disabled:opacity-50"
+              className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-bold shadow-lg shadow-violet-500/25 hover:scale-105 transition-all disabled:opacity-50"
             >
               {saving ? 'Saving...' : '✓ Save transaction'}
             </button>
@@ -249,10 +302,15 @@ export default function Transactions() {
 
       {/* Transactions list */}
       <div className={`rounded-3xl border overflow-hidden ${card}`}>
-        <div className={`px-6 py-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'}`}>
+        <div className={`px-6 py-4 border-b ${isDark ? 'border-slate-800' : 'border-slate-100'} flex items-center justify-between`}>
           <p className={`font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
             {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
           </p>
+          {search && (
+            <span className="text-xs text-slate-500">
+              Filtered by "{search}"
+            </span>
+          )}
         </div>
 
         {filtered.length === 0 ? (

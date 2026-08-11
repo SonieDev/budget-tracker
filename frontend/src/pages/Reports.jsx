@@ -96,8 +96,6 @@ export default function Reports() {
     fontSize: '12px'
   }
 
-import toast from 'react-hot-toast'
-
   async function generateAiReportHandler() {
     setGenerating(true)
     try {

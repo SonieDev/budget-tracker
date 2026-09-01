@@ -2,10 +2,23 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
-import { getStats, getTransactions, getGoals, exportTransactions, uploadAvatar} from '../api'
+import { getStats, getTransactions, getGoals, exportTransactions, uploadAvatar, deleteAccountApi } from '../api'
 import Layout from '../components/Layout'
 import { useThemeContext } from '../components/ThemeProvider'
 
+const CURRENCIES = [
+  { code: 'EUR', symbol: '€', label: 'Euro (EUR €)' },
+  { code: 'USD', symbol: '$', label: 'US Dollar (USD $)' },
+  { code: 'GBP', symbol: '£', label: 'British Pound (GBP £)' },
+  { code: 'CHF', symbol: 'CHF', label: 'Swiss Franc (CHF)' },
+  { code: 'FCFA', symbol: 'FCFA', label: 'CFA Franc (FCFA)' },
+]
+
+const PERSONALITIES = [
+  { id: 'warm', icon: '🌟', title: 'Warm & Encouraging', desc: 'Friendly, supportive, empathetic, and cheerful coach (Default).' },
+  { id: 'strict', icon: '📊', title: 'Strict Financial Analyst', desc: 'Formal, analytical, data-driven, and focused on strict metrics.' },
+  { id: 'gamified', icon: '🎮', title: 'Gamified & Energetic', desc: 'High energy, enthusiastic, playful challenges, and emoji rewards.' },
+]
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -23,9 +36,18 @@ export default function Profile() {
   const [newUsername, setNewUsername] = useState('')
   const [savingName, setSavingName] = useState(false)
 
-  //edit avatar
-const [uploading, setUploading] = useState(false)
-const avatarUrl = user?.user_metadata?.avatar_url
+  // Edit avatar
+  const [uploading, setUploading] = useState(false)
+  const avatarUrl = user?.user_metadata?.avatar_url
+
+  // Currency & Region
+  const [currency, setCurrency] = useState('EUR')
+  const [dateFormat, setDateFormat] = useState('YYYY-MM-DD')
+  const [savingCurrency, setSavingCurrency] = useState(false)
+
+  // AI Personality
+  const [aiPersonality, setAiPersonality] = useState('warm')
+  const [savingPersonality, setSavingPersonality] = useState(false)
 
   // Password
   const [activeSection, setActiveSection] = useState(null)
@@ -38,10 +60,8 @@ const avatarUrl = user?.user_metadata?.avatar_url
   // Reset link
   const [resetSent, setResetSent] = useState(false)
 
-  // Export
+  // Export & Delete
   const [exporting, setExporting] = useState(false)
-
-  // Delete
   const [showDelete, setShowDelete] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
 
@@ -49,7 +69,12 @@ const avatarUrl = user?.user_metadata?.avatar_url
     async function load() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { navigate('/login'); return }
-      setUser(session.user)
+      const u = session.user
+      setUser(u)
+      setCurrency(u?.user_metadata?.currency || 'EUR')
+      setDateFormat(u?.user_metadata?.date_format || 'YYYY-MM-DD')
+      setAiPersonality(u?.user_metadata?.ai_personality || 'warm')
+
       const [s, t, g] = await Promise.all([getStats(), getTransactions(), getGoals()])
       setStats(s); setTransactions(t || []); setGoals(g || [])
       setLoading(false)
@@ -73,6 +98,62 @@ const avatarUrl = user?.user_metadata?.avatar_url
     }
   }
 
+  async function handleAvatarUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const publicUrl = await uploadAvatar(file)
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session.user)
+      toast.success('Avatar updated!')
+    } catch (err) {
+      toast.error('Failed to upload avatar')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function updateCurrencyPreference(newCurr, newDateFormat) {
+    const matched = CURRENCIES.find(c => c.code === newCurr) || CURRENCIES[0]
+    setSavingCurrency(true)
+    try {
+      await supabase.auth.updateUser({
+        data: {
+          currency: matched.code,
+          currency_symbol: matched.symbol,
+          date_format: newDateFormat
+        }
+      })
+      setCurrency(matched.code)
+      setDateFormat(newDateFormat)
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session.user)
+      toast.success(`Currency set to ${matched.label}!`)
+    } catch (err) {
+      toast.error('Failed to update currency preference')
+    } finally {
+      setSavingCurrency(false)
+    }
+  }
+
+  async function updatePersonality(personaId) {
+    setSavingPersonality(true)
+    try {
+      await supabase.auth.updateUser({
+        data: { ai_personality: personaId }
+      })
+      setAiPersonality(personaId)
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session.user)
+      toast.success('AI Advisor personality updated!')
+    } catch (err) {
+      toast.error('Failed to update AI personality')
+    } finally {
+      setSavingPersonality(false)
+    }
+  }
+
   async function updatePassword() {
     setPasswordMsg({ text: '', type: '' })
     if (newPassword.length < 6) {
@@ -85,8 +166,6 @@ const avatarUrl = user?.user_metadata?.avatar_url
     }
 
     setSavingPassword(true)
-
-    // Verifica password attuale
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: user.email,
       password: currentPassword
@@ -133,8 +212,17 @@ const avatarUrl = user?.user_metadata?.avatar_url
 
   async function deleteAccount() {
     if (deleteConfirm !== 'DELETE') return
-    await supabase.auth.signOut()
-    navigate('/login')
+    try {
+      await deleteAccountApi()
+      toast.success('Account permanently deleted!')
+    } catch (err) {
+      console.error('Account deletion error:', err)
+      toast.error('Failed to delete account. Please try again.')
+    } finally {
+      await supabase.auth.signOut()
+      localStorage.clear()
+      navigate('/login')
+    }
   }
 
   if (loading) return (
@@ -148,12 +236,7 @@ const avatarUrl = user?.user_metadata?.avatar_url
   const memberSince = new Date(user?.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const lastLogin = user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
   const isEmailVerified = !!user?.email_confirmed_at
-
-  const income = stats?.totale_entrate || 0
-  const expense = stats?.totale_uscite || 0
-  const balance = stats?.saldo || 0
-  const savingsRate = income > 0 ? Math.round(((income - expense) / income) * 100) : 0
-  const completedGoals = goals.filter(g => g.current_amount >= g.target_amount).length
+  const currentSymbol = CURRENCIES.find(c => c.code === currency)?.symbol || '€'
 
   const card = isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
   const inputClass = isDark
@@ -161,316 +244,343 @@ const avatarUrl = user?.user_metadata?.avatar_url
     : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-violet-500'
 
   return (
-    <Layout user={user} title="Profile">
+    <Layout user={user} title="Settings">
+      <div className="max-w-4xl mx-auto space-y-6">
 
-      {/* Hero card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-violet-700 to-cyan-600 p-8 mb-6 shadow-2xl shadow-violet-500/20">
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full" />
-        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-white/5 rounded-full" />
+        {/* Hero card */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 via-violet-700 to-cyan-600 p-8 shadow-2xl shadow-violet-500/20">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/5 rounded-full" />
+          <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-white/5 rounded-full" />
 
-        <div className="relative flex items-center gap-6 flex-wrap">
-          {/* Avatar */}
-          <div className="relative">
-            <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white/20 backdrop-blur flex items-center justify-center shadow-xl border border-white/20">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-5xl font-black text-white">
-                  {username[0].toUpperCase()}
+          <div className="relative flex items-center gap-6 flex-wrap">
+            {/* Avatar */}
+            <div className="relative">
+              <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white/20 backdrop-blur flex items-center justify-center shadow-xl border border-white/20">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-5xl font-black text-white">
+                    {username[0].toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <label className="absolute -bottom-2 -right-2 bg-slate-950 text-white p-2 rounded-xl border border-slate-800 hover:bg-slate-800 cursor-pointer shadow-lg transition-transform hover:scale-110">
+                ✏️
+                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploading} />
+              </label>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="text-2xl font-black text-white">{username}</h2>
+                <span className={`text-xs px-3 py-1 rounded-full font-bold ${isEmailVerified ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}`}>
+                  {isEmailVerified ? '✓ Verified' : '⏳ Pending'}
                 </span>
-              )}
-            </div>
-            <label className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-white text-violet-700 flex items-center justify-center text-sm font-bold shadow-lg hover:scale-110 transition-transform cursor-pointer">
-              {uploading ? '⏳' : '📷'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files[0]
-                  if (!file) return
-                  setUploading(true)
-                  try {
-                    await uploadAvatar(file)
-                    const { data: { session } } = await supabase.auth.getSession()
-                    setUser(session.user)
-                  } catch (err) {
-                    console.error(err)
-                  }
-                  setUploading(false)
-                }}
-              />
-            </label>
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-1">
-              <h2 className="text-3xl font-black text-white truncate">{username}</h2>
-              <button
-                onClick={() => { setEditingName(true); setNewUsername(username) }}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white text-sm flex-shrink-0"
-              >✏️</button>
-            </div>
-            <p className="text-violet-200 text-sm mb-2">{email}</p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs px-3 py-1 rounded-full font-bold ${isEmailVerified ? 'bg-emerald-500/25 text-emerald-200 border border-emerald-400/30' : 'bg-red-500/25 text-red-200 border border-red-400/30'}`}>
-                {isEmailVerified ? '✅ Email verified' : '❌ Email not verified'}
-              </span>
-              <span className="text-xs px-3 py-1 rounded-full bg-white/10 text-violet-200 border border-white/10 font-semibold">
-                📅 Since {memberSince}
-              </span>
+              </div>
+              <p className="text-violet-200 text-sm mb-3">{email}</p>
+              <div className="flex gap-4 text-xs text-violet-200/80 flex-wrap">
+                <span>📅 Member since {memberSince}</span>
+                <span>🕒 Last login {lastLogin}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Edit username */}
-        {editingName && (
-          <div className="relative mt-5 flex gap-2">
-            <input
-              type="text" value={newUsername}
-              onChange={e => setNewUsername(e.target.value)}
-              placeholder="New display name"
-              className="flex-1 px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/40 outline-none text-sm backdrop-blur"
-            />
-            <button onClick={updateUsername} disabled={savingName}
-              className="px-5 py-3 rounded-xl bg-white text-violet-700 font-bold text-sm hover:bg-violet-50 transition-colors disabled:opacity-50"
-            >{savingName ? '...' : '✓ Save'}</button>
-            <button onClick={() => setEditingName(false)}
-              className="px-4 py-3 rounded-xl bg-white/10 text-white text-sm hover:bg-white/20 transition-colors"
-            >✕</button>
-          </div>
-        )}
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Net Balance', value: `€${balance.toFixed(2)}`, color: balance >= 0 ? 'text-emerald-400' : 'text-red-400', bg: balance >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20' },
-          { label: 'Total Income', value: `€${income.toFixed(2)}`, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-          { label: 'Total Expenses', value: `€${expense.toFixed(2)}`, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
-          { label: 'Savings Rate', value: `${savingsRate}%`, color: savingsRate >= 20 ? 'text-violet-400' : 'text-amber-400', bg: 'bg-violet-500/10 border-violet-500/20' },
-        ].map((s, i) => (
-          <div key={i} className={`rounded-2xl border p-5 ${s.bg}`}>
-            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">{s.label}</p>
-            <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-
-        {/* Account info */}
+        {/* Username section */}
         <div className={`rounded-3xl border p-6 ${card}`}>
-          <h3 className={`font-black text-base mb-5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Account Information
+          <h3 className={`font-black text-base mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Account Identity
           </h3>
-          <div className="space-y-2">
-            {[
-              { icon: '📧', label: 'Email', value: email },
-              { icon: '✅', label: 'Email verified', value: isEmailVerified ? 'Yes' : 'No' },
-              { icon: '🗓️', label: 'Member since', value: memberSince },
-              { icon: '↕', label: 'Transactions', value: `${transactions.length} total` },
-              { icon: '🏆', label: 'Goals completed', value: `${completedGoals} / ${goals.length}` },
-            ].map((item, i) => (
-              <div key={i} className={`flex items-center justify-between px-4 py-3 rounded-2xl ${isDark ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                <div className="flex items-center gap-3">
-                  <span className="text-base">{item.icon}</span>
-                  <span className="text-slate-500 text-sm">{item.label}</span>
-                </div>
-                <span className={`font-semibold text-sm truncate max-w-32 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {item.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Security */}
-        <div className={`rounded-3xl border p-6 ${card}`}>
-          <h3 className={`font-black text-base mb-5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            🔒 Password & Security
-          </h3>
-
-          {/* Change password button */}
-          {activeSection !== 'password' && (
-            <div className="space-y-3">
-              <button
-                onClick={() => setActiveSection('password')}
-                className={`
-                  w-full flex items-center justify-between px-5 py-4 rounded-2xl border
-                  font-semibold text-sm transition-all hover:border-violet-500 group
-                  ${isDark ? 'border-slate-700 text-white hover:bg-slate-800' : 'border-slate-200 text-slate-900 hover:bg-slate-50'}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center">
-                    🔑
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold">Change password</p>
-                    <p className="text-slate-500 text-xs font-normal">Update your current password</p>
-                  </div>
-                </div>
-                <span className="text-slate-400 group-hover:text-violet-400 transition-colors">→</span>
-              </button>
-
-
-              <button
-                onClick={async () => { await supabase.auth.signOut(); navigate('/login') }}
-                className={`
-                  w-full flex items-center justify-between px-5 py-4 rounded-2xl border
-                  font-semibold text-sm transition-all hover:border-red-500 group
-                  ${isDark ? 'border-slate-700 text-white hover:bg-red-500/5' : 'border-slate-200 text-slate-900 hover:bg-red-50'}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center">
-                    🚪
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold text-red-400">Sign out</p>
-                    <p className="text-slate-500 text-xs font-normal">Sign out from all devices</p>
-                  </div>
-                </div>
-                <span className="text-slate-400 group-hover:text-red-400 transition-colors">→</span>
-              </button>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Username</p>
+              <p className={`font-bold text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>{username}</p>
             </div>
-          )}
-
-          {/* Change password form */}
-          {activeSection === 'password' && (
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Current password
-                </label>
-                <input
-                  type="password" value={currentPassword}
-                  onChange={e => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors ${inputClass}`}
+            {!editingName ? (
+              <button onClick={() => { setEditingName(true); setNewUsername(username) }}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >✏️ Change Username</button>
+            ) : (
+              <div className="flex gap-2 items-center">
+                <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)}
+                  className={`px-3 py-2 rounded-xl border text-sm outline-none ${inputClass}`} placeholder="New username"
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  New password
-                </label>
-                <input
-                  type="password" value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  placeholder="Min. 6 characters"
-                  className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors ${inputClass}`}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Confirm new password
-                </label>
-                <input
-                  type="password" value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={`w-full px-4 py-3 rounded-xl border outline-none transition-colors ${inputClass}`}
-                />
-              </div>
-
-              {passwordMsg.text && (
-                <div className={`px-4 py-3 rounded-xl text-sm font-semibold ${passwordMsg.type === 'error' ? 'bg-red-500/15 text-red-400 border border-red-500/20' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'}`}>
-                  {passwordMsg.type === 'error' ? '❌' : '✅'} {passwordMsg.text}
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <button onClick={updatePassword} disabled={savingPassword}
-                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 text-white font-bold text-sm shadow-lg disabled:opacity-50 hover:scale-105 transition-all"
-                >{savingPassword ? 'Updating...' : '🔑 Update password'}</button>
-                <button
-                  onClick={() => { setActiveSection(null); setPasswordMsg({ text: '', type: '' }); setCurrentPassword(''); setNewPassword(''); setConfirmPassword('') }}
-                  className={`px-5 py-3 rounded-xl border font-bold text-sm ${isDark ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-500'}`}
+                <button onClick={updateUsername} disabled={savingName}
+                  className="px-4 py-2 rounded-xl bg-violet-600 text-white font-bold text-xs disabled:opacity-50"
+                >{savingName ? 'Saving...' : 'Save'}</button>
+                <button onClick={() => setEditingName(false)}
+                  className="px-3 py-2 rounded-xl border text-xs font-bold border-slate-700 text-slate-400"
                 >Cancel</button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Export */}
-      <div className={`rounded-3xl border p-6 mb-6 ${card}`}>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 flex items-center justify-center text-2xl">
-              📊
+        {/* 💱 SECTION 1: Currency & Regional Preferences */}
+        <div className={`rounded-3xl border p-6 ${card}`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 flex items-center justify-center text-xl">
+              💱
             </div>
             <div>
               <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                Export Data
+                Currency & Regional Preferences
               </h3>
-              <p className="text-slate-500 text-sm">
-                Download {transactions.length} transactions as CSV file
+              <p className="text-slate-500 text-xs">Set your preferred display currency and date format</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                Primary Currency ({currentSymbol})
+              </label>
+              <select
+                value={currency}
+                onChange={e => updateCurrencyPreference(e.target.value, dateFormat)}
+                disabled={savingCurrency}
+                className={`w-full px-4 py-3 rounded-2xl border outline-none text-sm font-semibold cursor-pointer ${inputClass}`}
+              >
+                {CURRENCIES.map(c => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                Date Format Display
+              </label>
+              <select
+                value={dateFormat}
+                onChange={e => updateCurrencyPreference(currency, e.target.value)}
+                disabled={savingCurrency}
+                className={`w-full px-4 py-3 rounded-2xl border outline-none text-sm font-semibold cursor-pointer ${inputClass}`}
+              >
+                <option value="YYYY-MM-DD">YYYY-MM-DD (2026-08-31)</option>
+                <option value="DD/MM/YYYY">DD/MM/YYYY (31/08/2026)</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY (08/31/2026)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* 🤖 SECTION 2: AI Advisor Personality Tone */}
+        <div className={`rounded-3xl border p-6 ${card}`}>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-2xl bg-violet-500/15 flex items-center justify-center text-xl">
+              🤖
+            </div>
+            <div>
+              <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                AI Advisor Personality Tone
+              </h3>
+              <p className="text-slate-500 text-xs">Choose how Claude AI interacts with you</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+            {PERSONALITIES.map(p => {
+              const active = aiPersonality === p.id
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => updatePersonality(p.id)}
+                  disabled={savingPersonality}
+                  className={`
+                    p-4 rounded-2xl border text-left transition-all duration-150 relative
+                    ${active
+                      ? 'border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/15'
+                      : isDark
+                        ? 'border-slate-800 bg-slate-800/40 hover:bg-slate-800'
+                        : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                    }
+                  `}
+                >
+                  <div className="text-2xl mb-2">{p.icon}</div>
+                  <p className={`font-bold text-sm mb-1 ${active ? 'text-violet-400' : isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {p.title}
+                  </p>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    {p.desc}
+                  </p>
+                  {active && (
+                    <span className="absolute top-3 right-3 text-xs text-violet-400 font-bold">✓ Active</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Security & Password */}
+        <div className={`rounded-3xl border p-6 ${card}`}>
+          <h3 className={`font-black text-base mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Security & Authentication
+          </h3>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-slate-800/40">
+              <div>
+                <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>Change Password</p>
+                <p className="text-slate-500 text-xs">Update your password securely</p>
+              </div>
+              <button
+                onClick={() => setActiveSection(activeSection === 'password' ? null : 'password')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                {activeSection === 'password' ? 'Close' : '🔒 Change Password'}
+              </button>
+            </div>
+
+            {/* Change password form */}
+            {activeSection === 'password' && (
+              <div className="space-y-3 pt-2">
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  placeholder="Current password"
+                  className={`w-full px-4 py-3 rounded-xl border text-sm outline-none ${inputClass}`}
+                />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="New password (min. 6 chars)"
+                  className={`w-full px-4 py-3 rounded-xl border text-sm outline-none ${inputClass}`}
+                />
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className={`w-full px-4 py-3 rounded-xl border text-sm outline-none ${inputClass}`}
+                />
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={updatePassword}
+                    disabled={savingPassword}
+                    className="flex-1 py-3 rounded-xl bg-violet-600 text-white font-bold text-sm shadow-lg disabled:opacity-50 hover:bg-violet-700 transition-all"
+                  >
+                    {savingPassword ? 'Updating...' : '🔑 Update Password'}
+                  </button>
+                  <button
+                    onClick={() => setActiveSection(null)}
+                    className="px-4 py-3 rounded-xl border border-slate-700 text-slate-400 font-bold text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>Send Password Reset Email</p>
+                <p className="text-slate-500 text-xs">Receive a password recovery link in your inbox</p>
+              </div>
+              <button
+                onClick={sendResetLink}
+                disabled={resetSent}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${resetSent ? 'bg-emerald-500/20 text-emerald-400' : isDark ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+              >
+                {resetSent ? '✓ Email Sent' : '📧 Send Reset Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Export Data */}
+        <div className={`rounded-3xl border p-6 ${card}`}>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 flex items-center justify-center text-2xl">
+                📊
+              </div>
+              <div>
+                <h3 className={`font-black text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  Export Data
+                </h3>
+                <p className="text-slate-500 text-sm">
+                  Download {transactions.length} transactions as CSV file
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleExport}
+              disabled={exporting || transactions.length === 0}
+              className={`
+                flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all
+                ${transactions.length === 0
+                  ? 'opacity-40 cursor-not-allowed bg-slate-700 text-slate-400'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 hover:scale-105'
+                }
+              `}
+            >
+              {exporting ? '⏳ Exporting...' : '⬇️ transactions.csv'}
+            </button>
+          </div>
+        </div>
+
+        {/* Danger zone */}
+        <div className="rounded-3xl border border-red-500/20 bg-red-500/5 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center text-lg">
+              ⚠️
+            </div>
+            <div>
+              <h3 className="font-black text-base text-red-400">Danger Zone</h3>
+              <p className="text-slate-500 text-xs">Irreversible actions</p>
+            </div>
+          </div>
+
+          <p className="text-slate-500 text-sm mb-4">
+            Permanently delete your account and all associated data. This cannot be undone.
+          </p>
+
+          {!showDelete ? (
+            <button
+              onClick={() => setShowDelete(true)}
+              className="px-5 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-bold text-sm hover:bg-red-500/20 transition-colors"
+            >
+              🗑️ Delete my account
+            </button>
+          ) : (
+            <div className={`rounded-2xl border border-red-500/20 p-4 ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
+              <p className="text-red-400 font-bold text-sm mb-1">
+                ⚠️ This will permanently delete your account and all data.
               </p>
+              <p className="text-slate-500 text-xs mb-4">
+                Type <strong className="text-red-400">DELETE</strong> to confirm.
+              </p>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={deleteConfirm}
+                  onChange={e => setDeleteConfirm(e.target.value)}
+                  placeholder="Type DELETE"
+                  className={`flex-1 px-4 py-2.5 rounded-xl border outline-none text-sm ${inputClass}`}
+                />
+                <button
+                  onClick={deleteAccount}
+                  disabled={deleteConfirm !== 'DELETE'}
+                  className="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm disabled:opacity-30 hover:bg-red-700 transition-colors"
+                >
+                  Delete forever
+                </button>
+                <button
+                  onClick={() => { setShowDelete(false); setDeleteConfirm('') }}
+                  className="px-4 py-2.5 rounded-xl border border-slate-700 text-slate-400 text-sm font-bold"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
-          <button
-            onClick={handleExport}
-            disabled={exporting || transactions.length === 0}
-            className={`
-              flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all
-              ${transactions.length === 0
-                ? 'opacity-40 cursor-not-allowed bg-slate-700 text-slate-400'
-                : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 hover:scale-105'
-              }
-            `}
-          >
-            {exporting ? '⏳ Exporting...' : '⬇️ transactions.csv'}
-          </button>
+          )}
         </div>
-      </div>
-
-      {/* Danger zone */}
-      <div className="rounded-3xl border border-red-500/20 bg-red-500/5 p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center text-lg">
-            ⚠️
-          </div>
-          <div>
-            <h3 className="font-black text-base text-red-400">Danger Zone</h3>
-            <p className="text-slate-500 text-xs">Irreversible actions</p>
-          </div>
-        </div>
-
-        <p className="text-slate-500 text-sm mb-4 ml-13">
-          Permanently delete your account and all associated data. This cannot be undone.
-        </p>
-
-        {!showDelete ? (
-          <button
-            onClick={() => setShowDelete(true)}
-            className="px-5 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-bold text-sm hover:bg-red-500/20 transition-colors"
-          >🗑️ Delete my account</button>
-        ) : (
-          <div className={`rounded-2xl border border-red-500/20 p-4 ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
-            <p className="text-red-400 font-bold text-sm mb-1">
-              ⚠️ This will permanently delete your account and all data.
-            </p>
-            <p className="text-slate-500 text-xs mb-4">
-              Type <strong className="text-red-400">DELETE</strong> to confirm.
-            </p>
-            <div className="flex gap-3">
-              <input
-                type="text" value={deleteConfirm}
-                onChange={e => setDeleteConfirm(e.target.value)}
-                placeholder="Type DELETE"
-                className={`flex-1 px-4 py-2.5 rounded-xl border outline-none text-sm ${inputClass}`}
-              />
-              <button onClick={deleteAccount} disabled={deleteConfirm !== 'DELETE'}
-                className="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold text-sm disabled:opacity-30 hover:bg-red-700 transition-colors"
-              >Delete forever</button>
-              <button onClick={() => { setShowDelete(false); setDeleteConfirm('') }}
-                className={`px-4 py-2.5 rounded-xl border text-sm font-bold ${isDark ? 'border-slate-700 text-slate-400' : 'border-slate-200 text-slate-500'}`}
-              >Cancel</button>
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   )

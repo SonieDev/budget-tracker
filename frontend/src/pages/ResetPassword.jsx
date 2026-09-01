@@ -64,7 +64,7 @@ export default function ResetPassword() {
     setMsg({ text: '', type: '' })
 
     if (newPassword.length < 6) {
-      setMsg({ text: 'Password must be at least 6 characters!', type: 'error' })
+      setMsg({ text: 'Password must be at least 6 characters long!', type: 'error' })
       return
     }
 
@@ -78,7 +78,7 @@ export default function ResetPassword() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       setMsg({
-        text: 'Error updating password. Try again.',
+        text: 'Error updating password. Link may be expired.',
         type: 'error'
       })
       setLoading(false)
@@ -89,9 +89,9 @@ export default function ResetPassword() {
 
     if (error) {
       console.error('Supabase updateUser error:', error)
-      setMsg({ text: 'Error updating password. Try again.', type: 'error' })
+      setMsg({ text: 'Error updating password. Please try again.', type: 'error' })
     } else {
-      setMsg({ text: 'Password updated! Redirecting...', type: 'success' })
+      setMsg({ text: 'Password updated successfully! Redirecting to sign in...', type: 'success' })
       setTimeout(() => navigate('/login'), 2000)
     }
 
@@ -99,112 +99,81 @@ export default function ResetPassword() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'radial-gradient(circle at top, #1e293b 0%, #020617 70%)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px', fontFamily: 'Inter, sans-serif'
-    }}>
-      <div style={{
-        width: '100%', maxWidth: '420px',
-        background: 'rgba(15,23,42,0.82)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '28px', padding: '42px',
-        backdropFilter: 'blur(18px)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.45)'
-      }}>
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{
-            width: '56px', height: '56px', borderRadius: '18px',
-            background: 'linear-gradient(135deg,#7c3aed,#06b6d4)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'white', fontWeight: '800', fontSize: '1.4rem',
-            marginBottom: '22px', boxShadow: '0 10px 30px rgba(124,58,237,0.45)'
-          }}>🔒</div>
-          <h1 style={{ color: 'white', fontSize: '1.8rem', fontWeight: '800', marginBottom: '8px', letterSpacing: '-1px' }}>
-            Reset password
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-100 relative overflow-hidden">
+      {/* Ambient background glows */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md bg-slate-900/80 border border-slate-800 rounded-3xl p-8 md:p-10 backdrop-blur-xl shadow-2xl relative z-10 space-y-6">
+        <div className="text-center space-y-2">
+          <img
+            src="/logo.jpg"
+            alt="Budget Tracker Logo"
+            className="w-14 h-14 rounded-2xl object-cover border border-violet-500/30 shadow-lg shadow-violet-500/30 mx-auto"
+          />
+          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+            Reset Password
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>
-            Choose a new secure password for your account.
+          <p className="text-slate-400 text-xs md:text-sm">
+            Choose a new secure password for your account
           </p>
         </div>
 
         {isVerifying ? (
-          <div style={{ color: '#94a3b8', textAlign: 'center', padding: '20px' }}>
-            Verifying reset link...
+          <div className="py-8 text-center text-slate-400 text-sm font-semibold animate-pulse">
+            Verifying reset token...
           </div>
         ) : (
-          <>
+          <div className="space-y-4">
             {msg.text && (
-              <div style={{
-                background: msg.type === 'error' ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
-                border: `1px solid ${msg.type === 'error' ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
-                color: msg.type === 'error' ? '#fca5a5' : '#6ee7b7',
-                padding: '14px', borderRadius: '14px',
-                marginBottom: '20px', fontSize: '0.9rem'
-              }}>
+              <div className={`p-3.5 rounded-2xl text-xs font-semibold text-center border ${msg.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'}`}>
                 {msg.type === 'error' ? '❌' : '✅'} {msg.text}
               </div>
             )}
 
             {!hasSession && !msg.text && (
-              <div style={{
-                background: 'rgba(245,158,11,0.12)',
-                border: '1px solid rgba(245,158,11,0.25)',
-                color: '#fcd34d',
-                padding: '14px', borderRadius: '14px',
-                marginBottom: '20px', fontSize: '0.9rem'
-              }}>
-                ⚠️ This link may be expired or invalid. Make sure to click the link in the latest email received.
+              <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-3.5 rounded-2xl text-xs font-semibold text-center">
+                ⚠️ Link may be expired or invalid. Please request a new link from the Sign In page.
               </div>
             )}
 
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', color: '#cbd5e1', marginBottom: '8px', fontSize: '0.9rem', fontWeight: '600' }}>
-                New password
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                New Password
               </label>
               <input
-                type="password" value={newPassword}
+                type="password"
+                value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                placeholder="Min. 6 characters"
-                style={{
-                  width: '100%', padding: '15px', borderRadius: '16px',
-                  background: '#0f172a', border: '1px solid #334155',
-                  color: 'white', outline: 'none', fontSize: '0.95rem', boxSizing: 'border-box'
-                }}
+                placeholder="At least 6 characters"
+                required
+                className="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white outline-none focus:border-violet-500 transition-colors text-sm placeholder-slate-600"
               />
             </div>
 
-            <div style={{ marginBottom: '28px' }}>
-              <label style={{ display: 'block', color: '#cbd5e1', marginBottom: '8px', fontSize: '0.9rem', fontWeight: '600' }}>
-                Confirm new password
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                Confirm New Password
               </label>
               <input
-                type="password" value={confirmPassword}
+                type="password"
+                value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && updatePassword()}
                 placeholder="••••••••"
-                style={{
-                  width: '100%', padding: '15px', borderRadius: '16px',
-                  background: '#0f172a', border: '1px solid #334155',
-                  color: 'white', outline: 'none', fontSize: '0.95rem', boxSizing: 'border-box'
-                }}
+                required
+                className="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white outline-none focus:border-violet-500 transition-colors text-sm placeholder-slate-600"
               />
             </div>
 
             <button
-              onClick={updatePassword} disabled={loading}
-              style={{
-                width: '100%', padding: '15px', borderRadius: '16px', border: 'none',
-                background: 'linear-gradient(135deg,#7c3aed,#06b6d4)',
-                color: 'white', fontWeight: '700', fontSize: '1rem',
-                cursor: 'pointer', boxShadow: '0 10px 30px rgba(124,58,237,0.35)',
-                opacity: loading ? 0.7 : 1
-              }}
+              onClick={updatePassword}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 text-white font-black text-sm shadow-lg shadow-violet-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
             >
-              {loading ? 'Updating...' : '🔒 Update password'}
+              {loading ? 'Updating...' : '🔒 Update Password'}
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>

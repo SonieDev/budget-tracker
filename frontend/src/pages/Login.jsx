@@ -2,267 +2,135 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabase'
 
-function Login() {
+export default function Login() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [errore, setErrore] = useState('')
-  const [caricamento, setCaricamento] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [focusEmail, setFocusEmail] = useState(false)
-  const [focusPassword, setFocusPassword] = useState(false)
 
-  async function accedi() {
+  async function handleLogin() {
     if (!email || !password) {
-      setErrore('Inserisci email e password!')
+      setError('Please enter your email and password!')
       return
     }
-    setCaricamento(true)
-    setErrore('')
+    setLoading(true)
+    setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     
     if (error) {
-      setErrore('Email o password errati!')
-      setCaricamento(false)
+      setError('Invalid email or password!')
+      setLoading(false)
       return
     }
     navigate('/')
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'radial-gradient(circle at top, #1e293b 0%, #020617 70%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-      fontFamily: 'Inter, sans-serif'
-    }}>
-      
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-100 relative overflow-hidden">
+      {/* Glow ambient background elements */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
       <form
-        onSubmit={e => { e.preventDefault(); accedi() }}
-        style={{
-          width: '100%',
-          maxWidth: '420px',
-          background: 'rgba(15,23,42,0.82)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: '28px',
-          padding: '42px',
-          backdropFilter: 'blur(18px)',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.45)'
-        }}
+        onSubmit={e => { e.preventDefault(); handleLogin() }}
+        className="w-full max-w-md bg-slate-900/80 border border-slate-800 rounded-3xl p-8 md:p-10 backdrop-blur-xl shadow-2xl relative z-10 space-y-6"
       >
-
         {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <div style={{
-            width: '56px',
-            height: '56px',
-            borderRadius: '18px',
-            background: 'linear-gradient(135deg,#7c3aed,#06b6d4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: '800',
-            fontSize: '1.2rem',
-            marginBottom: '22px',
-            boxShadow: '0 10px 30px rgba(124,58,237,0.45)'
-          }}>
-            BT
-          </div>
-
-          <h1 
-          className="text-red-500"
-          style={{
-            color: 'white',
-            fontSize: '2rem',
-            fontWeight: '800',
-            marginBottom: '8px',
-            letterSpacing: '-1px'
-            
-          }}>
-            Welcome back
+        <div className="text-center space-y-2">
+          <img
+            src="/logo.jpg"
+            alt="Budget Tracker Logo"
+            className="w-14 h-14 rounded-2xl object-cover border border-violet-500/30 shadow-lg shadow-violet-500/30 mx-auto"
+          />
+          <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+            Welcome Back
           </h1>
-
-          <p style={{
-            color: '#94a3b8',
-            fontSize: '0.95rem'
-          }}>
-            Sign in to manage your finances securely.
+          <p className="text-slate-400 text-xs md:text-sm">
+            Sign in to manage your smart financial budget
           </p>
         </div>
 
-        {/* Error */}
-        {errore && (
-          <div style={{
-            background: 'rgba(239,68,68,0.12)',
-            border: '1px solid rgba(239,68,68,0.25)',
-            color: '#fca5a5',
-            padding: '14px',
-            borderRadius: '14px',
-            marginBottom: '20px',
-            fontSize: '0.9rem'
-          }}>
-            {errore}
+        {/* Error message */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-300 p-3.5 rounded-2xl text-xs font-semibold text-center">
+            {error}
           </div>
         )}
 
-        {/* Email */}
-        <div style={{ marginBottom: '18px' }}>
-          <label style={{
-            display: 'block',
-            color: '#cbd5e1',
-            marginBottom: '8px',
-            fontSize: '0.9rem',
-            fontWeight: '600'
-          }}>
-            Email
-          </label>
-
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            style={{
-              width: '100%',
-              padding: '15px',
-              borderRadius: '16px',
-              background: '#0f172a',
-              border: '1px solid #334155',
-              color: 'white',
-              outline: 'none',
-              fontSize: '0.95rem',
-              boxSizing: 'border-box'
-            }}
-          />
-        </div>
-
-        {/* Password */}
-        <div style={{ marginBottom: '26px' }}>
-          <label style={{
-            display: 'block',
-            color: '#cbd5e1',
-            marginBottom: '8px',
-            fontSize: '0.9rem',
-            fontWeight: '600'
-          }}>
-            Password
-          </label>
-
-          <div style={{
-            position: 'relative',
-            width: '100%'
-          }}>
-
+        {/* Form fields */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Email Address
+            </label>
             <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  accedi()
-                }
-              }}
-              
-              placeholder="••••••••"
-              style={{
-                width: '100%',
-                padding: '15px 55px 15px 15px',
-                borderRadius: '16px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                color: 'white',
-                outline: 'none',
-                fontSize: '0.95rem',
-                boxSizing: 'border-box'
-              }}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              required
+              className="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white outline-none focus:border-violet-500 transition-colors text-sm placeholder-slate-600"
             />
+          </div>
 
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              style={{
-                position: 'absolute',
-                top: '50%',
-                right: '16px',
-                transform: 'translateY(-50%)',
-                background: 'transparent',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                fontSize: '1.1rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {showPassword ? '🙈' : '👁️'}
-            </button>
-
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full px-4 py-3.5 pr-12 rounded-2xl bg-slate-950 border border-slate-800 text-white outline-none focus:border-violet-500 transition-colors text-sm placeholder-slate-600"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors text-base"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Button */}
+        {/* Submit button */}
         <button
           type="submit"
-          disabled={caricamento}
-          style={{
-            width: '100%',
-            padding: '15px',
-            borderRadius: '16px',
-            border: 'none',
-            background: 'linear-gradient(135deg,#7c3aed,#06b6d4)',
-            color: 'white',
-            fontWeight: '700',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            boxShadow: '0 10px 30px rgba(124,58,237,0.35)'
-          }}
+          disabled={loading}
+          className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 text-white font-black text-sm shadow-lg shadow-violet-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
         >
-          {caricamento ? 'Signing in...' : 'Sign In'}
+          {loading ? 'Signing in...' : 'Sign In'}
         </button>
 
-        {/* Forgot Password */}
-        <p style={{ textAlign: 'center', marginTop: '16px' }}>
-          <span
-            onClick={() => navigate('/forgot-password')}
-            style={{
-              color: '#64748b',
-              cursor: 'pointer',
-              fontSize: '0.85rem'
-            }}
-          >
-            Forgot your password?
-          </span>
-        </p>
-
-        {/* Footer */}
-        <p style={{
-          marginTop: '24px',
-          textAlign: 'center',
-          color: '#64748b',
-          fontSize: '0.9rem'
-        }}>
-          Don’t have an account?{' '}
-          <span
-            onClick={() => navigate('/register')}
-            style={{
-              color: '#a78bfa',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
-          >
-            Create one
-          </span>
-        </p>
-
+        {/* Extra links */}
+        <div className="space-y-3 text-center text-xs">
+          <p>
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              Forgot your password?
+            </button>
+          </p>
+          <p className="text-slate-500">
+            Don't have an account?{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="text-violet-400 font-bold hover:text-violet-300 transition-colors"
+            >
+              Create Account
+            </button>
+          </p>
+        </div>
       </form>
     </div>
   )
 }
-
-export default Login

@@ -95,7 +95,7 @@ export default function Transactions() {
       .find(c => c.name === categoryId)
 
     try {
-      await createTransaction({
+      const res = await createTransaction({
         type,
         amount: parseFloat(amount),
         description: description || selectedCat?.name || 'Transaction',
@@ -105,6 +105,13 @@ export default function Transactions() {
       })
 
       toast.success(type === 'expense' ? '💸 Expense recorded!' : '💰 Income added!')
+
+      if (res?.roundup) {
+        toast.success(`🐷 Smart Vault: €${res.roundup.spare_change.toFixed(2)} spare change rounded up into ${res.roundup.goal_name}!`, {
+          duration: 5000,
+          icon: '🐷'
+        })
+      }
       const t = await getTransactions()
       setTransactions(t || [])
       setAmount(''); setDescription(''); setCategoryId(''); setUserTouchedCat(false)

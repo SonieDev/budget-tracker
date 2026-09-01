@@ -106,6 +106,11 @@ export const getStats = () => chiamaAPI('/stats')
 export const checkAdmin = () => chiamaAPI('/admin/check')
 export const getAdminStats = () => chiamaAPI('/admin/stats')
 export const getAdminUsers = () => chiamaAPI('/admin/users')
+export const getAdminFeatures = () => chiamaAPI('/admin/features')
+export const updateAdminFeature = (key, data) => chiamaAPI(`/admin/features/${key}`, {
+  method: 'PATCH',
+  body: JSON.stringify(data)
+})
 
 // -------------------------
 // AI
@@ -115,6 +120,20 @@ export const sendChatMessage = (message, history) => chiamaAPI('/ai/chat', {
   body: JSON.stringify({ message, history })
 })
 
+export const getChatHistory = () => chiamaAPI('/ai/chat/history')
+
+export const clearChatHistory = () => chiamaAPI('/ai/chat/history', {
+  method: 'DELETE'
+})
+
+
+
+// -------------------------
+// USER ACCOUNT
+// -------------------------
+export const deleteAccountApi = () => chiamaAPI('/user/account', {
+  method: 'DELETE'
+})
 
 // -------------------------
 // AVATAR

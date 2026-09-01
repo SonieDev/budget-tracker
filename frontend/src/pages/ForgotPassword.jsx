@@ -18,7 +18,7 @@ export default function ForgotPassword() {
     })
     if (error) {
       console.error('Supabase resetPasswordForEmail error:', error)
-      setError('Error sending reset link. Try again.')
+      setError('Error sending reset link. Please try again.')
       setLoading(false)
       return
     }
@@ -27,128 +27,93 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'radial-gradient(circle at top, #1e293b 0%, #020617 70%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-      fontFamily: 'Inter, sans-serif'
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '420px',
-        background: 'rgba(15,23,42,0.82)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '28px',
-        padding: '42px',
-        backdropFilter: 'blur(18px)',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.45)'
-      }}>
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-100 relative overflow-hidden">
+      {/* Background glow effects */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-violet-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md bg-slate-900/80 border border-slate-800 rounded-3xl p-8 md:p-10 backdrop-blur-xl shadow-2xl relative z-10">
         {!sent ? (
-          <>
+          <div className="space-y-6">
             {/* Header */}
-            <div style={{ marginBottom: '32px' }}>
-              <div style={{
-                width: '56px', height: '56px',
-                borderRadius: '18px',
-                background: 'linear-gradient(135deg,#7c3aed,#06b6d4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'white', fontWeight: '800', fontSize: '1.4rem',
-                marginBottom: '22px',
-                boxShadow: '0 10px 30px rgba(124,58,237,0.45)'
-              }}>🔑</div>
-              <h1 style={{ color: 'white', fontSize: '1.8rem', fontWeight: '800', marginBottom: '8px', letterSpacing: '-1px' }}>
-                Forgot password?
+            <div className="text-center space-y-2">
+              <img
+                src="/logo.jpg"
+                alt="Budget Tracker Logo"
+                className="w-14 h-14 rounded-2xl object-cover border border-violet-500/30 shadow-lg shadow-violet-500/30 mx-auto"
+              />
+              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+                Forgot Password?
               </h1>
-              <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.5' }}>
-                Enter your email and we'll send you a link to reset your password.
+              <p className="text-slate-400 text-xs md:text-sm">
+                Enter your email address to receive a password reset link
               </p>
             </div>
 
             {/* Error */}
             {error && (
-              <div style={{
-                background: 'rgba(239,68,68,0.12)',
-                border: '1px solid rgba(239,68,68,0.25)',
-                color: '#fca5a5',
-                padding: '14px', borderRadius: '14px',
-                marginBottom: '20px', fontSize: '0.9rem'
-              }}>❌ {error}</div>
+              <div className="bg-red-500/10 border border-red-500/20 text-red-300 p-3.5 rounded-2xl text-xs font-semibold text-center">
+                ❌ {error}
+              </div>
             )}
 
-            {/* Email */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', color: '#cbd5e1', marginBottom: '8px', fontSize: '0.9rem', fontWeight: '600' }}>
-                Email address
+            {/* Email input */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                Email Address
               </label>
               <input
-                type="email" value={email}
+                type="email"
+                value={email}
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendReset()}
                 placeholder="you@example.com"
-                style={{
-                  width: '100%', padding: '15px',
-                  borderRadius: '16px',
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  color: 'white', outline: 'none',
-                  fontSize: '0.95rem', boxSizing: 'border-box'
-                }}
+                required
+                className="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white outline-none focus:border-violet-500 transition-colors text-sm placeholder-slate-600"
               />
             </div>
 
-            {/* Button */}
+            {/* Submit button */}
             <button
-              onClick={sendReset} disabled={loading}
-              style={{
-                width: '100%', padding: '15px',
-                borderRadius: '16px', border: 'none',
-                background: 'linear-gradient(135deg,#7c3aed,#06b6d4)',
-                color: 'white', fontWeight: '700',
-                fontSize: '1rem', cursor: 'pointer',
-                boxShadow: '0 10px 30px rgba(124,58,237,0.35)',
-                marginBottom: '20px',
-                opacity: loading ? 0.7 : 1
-              }}
+              onClick={sendReset}
+              disabled={loading}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 text-white font-black text-sm shadow-lg shadow-violet-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
             >
-              {loading ? 'Sending...' : '📧 Send reset link'}
+              {loading ? 'Sending...' : '📧 Send Reset Link'}
             </button>
 
-            {/* Back to login */}
-            <p style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
+            {/* Back link */}
+            <p className="text-center text-xs text-slate-500">
               Remember your password?{' '}
-              <span
+              <button
+                type="button"
                 onClick={() => navigate('/login')}
-                style={{ color: '#a78bfa', cursor: 'pointer', fontWeight: '600' }}
-              >Sign in →</span>
+                className="text-violet-400 font-bold hover:text-violet-300 transition-colors"
+              >
+                Sign In →
+              </button>
             </p>
-          </>
+          </div>
         ) : (
           /* Success state */
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '20px' }}>📧</div>
-            <h2 style={{ color: 'white', fontSize: '1.6rem', fontWeight: '800', marginBottom: '12px' }}>
-              Check your email!
-            </h2>
-            <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '32px' }}>
-              We sent a password reset link to<br />
-              <strong style={{ color: 'white' }}>{email}</strong>
-            </p>
-            <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '24px' }}>
+          <div className="text-center space-y-6">
+            <div className="text-5xl">📧</div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-white">Check Your Email</h2>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                We sent a password reset link to<br />
+                <strong className="text-white">{email}</strong>
+              </p>
+            </div>
+            <p className="text-slate-500 text-xs">
               Didn't receive it? Check your spam folder.
             </p>
             <button
               onClick={() => navigate('/login')}
-              style={{
-                width: '100%', padding: '15px',
-                borderRadius: '16px', border: 'none',
-                background: 'linear-gradient(135deg,#7c3aed,#06b6d4)',
-                color: 'white', fontWeight: '700',
-                fontSize: '1rem', cursor: 'pointer'
-              }}
-            >← Back to login</button>
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 text-white font-black text-sm shadow-lg shadow-violet-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              ← Back to Sign In
+            </button>
           </div>
         )}
       </div>
